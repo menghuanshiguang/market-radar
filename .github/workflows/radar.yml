@@ -1,8 +1,8 @@
 name: Market Radar Daily
 on:
   schedule:
-    - cron: '30 0 * * 1-5'   # UTC 00:30 = 北京 08:30 (开盘前)
-    - cron: '35 7 * * 1-5'   # UTC 07:35 = 北京 15:35 (收盘后)
+    - cron: '30 0 2 * *'     # 每月2日 UTC 00:30 = 北京 08:30 (上月月线完整)
+
   workflow_dispatch: {}
 
 permissions:
