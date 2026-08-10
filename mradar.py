@@ -115,6 +115,9 @@ def analyze_one(code, mtype, name, etf):
 
 def main():
     args = sys.argv[1:]
+    md_mode = "--md" in args
+    if md_mode:
+        args.remove("--md")
     if args and args[0] in ("-h", "--help"):
         print(__doc__)
         return
@@ -149,7 +152,11 @@ def main():
         return
 
     # 全量扫描
-    print(f"=== 大盘月线MACD雷达 {datetime.date.today()} ===")
+    if md_mode:
+        print(f"# 📡 大盘月线MACD雷达")
+        print(f"**{datetime.date.today()}** · 自动生成 · [market-radar](https://github.com/menghuanshiguang/market-radar)\n")
+    else:
+        print(f"=== 大盘月线MACD雷达 {datetime.date.today()} ===")
     results = []
     for code, mtype, name, etf, t in INDICES:
         r = analyze_one(code, mtype, name, etf)
@@ -157,12 +164,42 @@ def main():
             results.append(r)
     order = {"金叉健康": 0, "金叉转弱": 1, "金叉垂死": 2, "刚死叉": 3, "死叉收敛": 4, "死叉扩大": 5}
     results.sort(key=lambda x: (order.get(x["state"], 9), -x["hist3"][-1]))
-    print(f"{'指数':8s} {'状态':>8s} {'月线柱':>8s} {'说明':>28s} {'对应ETF':>14s}")
-    for r in results:
-        mark = {"金叉健康": "🟢", "金叉转弱": "🟡", "金叉垂死": "🟡", "死叉收敛": "🟠", "刚死叉": "🔴", "死叉扩大": "🔴"}.get(r["state"], "")
-        print(f"{r['name']:8s} {mark}{r['state']:>8s} {r['hist3'][-1]:>+8.0f} {r['note']:>28s} {r['etf']:>14s}")
-    print("\n🟢金叉健康=柱扩大可做多  🟡金叉垂死=收敛将死叉   🟠死叉收敛=或修复")
-    print("🔴死叉=按月线策略回避/清仓(上证死叉则全A股半导体策略空仓)")
+    if md_mode:
+        groups = ["金叉健康", "金叉转弱", "金叉垂死", "刚死叉", "死叉收敛", "死叉扩大"]
+        emoji = {"金叉健康": "🟢", "金叉转弱": "🟡", "金叉垂死": "🟡", "刚死叉": "🔴", "死叉收敛": "🟠", "死叉扩大": "🔴"}
+        desc = {"金叉健康": "月线柱回升,可做多", "金叉转弱": "柱连续收缩,警惕", "金叉垂死": "柱贴零轴,即将死叉",
+                "刚死叉": "死叉第1-2月,回避/清仓", "死叉收敛": "绿柱缩短,可能修复", "死叉扩大": "绿柱扩大,恶化"}
+        for g in groups:
+            sub = [r for r in results if r["state"] == g]
+            if not sub:
+                continue
+            print(f"\n## {emoji[g]} {g} — {desc[g]}")
+            print(f"\n| 指数 | 月线柱 | 说明 | 对应ETF |")
+            print(f"|---|---|---|---|")
+            for r in sub:
+                print(f"| {r['name']} | {r['hist3'][-1]:+.0f} | {r['note']} | {r['etf']} |")
+        # 结论摘要
+        print(f"\n## 📋 结论")
+        buy = [r for r in results if r["state"] == "金叉健康"]
+        avoid = [r for r in results if r["state"] in ("刚死叉", "死叉扩大")]
+        dying = [r for r in results if r["state"] in ("金叉转弱", "金叉垂死")]
+        if buy:
+            print(f"- 🟢 可做多: {', '.join(r['name'] for r in buy)}")
+        if dying:
+            print(f"- 🟡 转弱/垂死: {', '.join(r['name'] for r in dying)}")
+        if avoid:
+            print(f"- 🔴 回避/清仓: {', '.join(r['name'] for r in avoid)}")
+        conv = [r for r in results if r["state"] == "死叉收敛"]
+        if conv:
+            print(f"- 🟠 死叉收敛(观察): {', '.join(r['name'] for r in conv)}")
+        print(f"\n_策略联动: 上证月线死叉 → 半导体策略空仓,等下一次月线金叉_")
+    else:
+        print(f"{'指数':8s} {'状态':>8s} {'月线柱':>8s} {'说明':>28s} {'对应ETF':>14s}")
+        for r in results:
+            mark = {"金叉健康": "🟢", "金叉转弱": "🟡", "金叉垂死": "🟡", "死叉收敛": "🟠", "刚死叉": "🔴", "死叉扩大": "🔴"}.get(r["state"], "")
+            print(f"{r['name']:8s} {mark}{r['state']:>8s} {r['hist3'][-1]:>+8.0f} {r['note']:>28s} {r['etf']:>14s}")
+        print("\n🟢金叉健康=柱扩大可做多  🟡金叉垂死=收敛将死叉   🟠死叉收敛=或修复")
+        print("🔴死叉=按月线策略回避/清仓(上证死叉则全A股半导体策略空仓)")
 
 if __name__ == "__main__":
     main()

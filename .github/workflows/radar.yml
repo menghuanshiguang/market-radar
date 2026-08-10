@@ -19,7 +19,7 @@ jobs:
       - name: 生成月线雷达报告
         run: |
           mkdir -p reports
-          python3 mradar.py > "reports/$(date +%Y-%m-%d).md"
+          python3 mradar.py --md > "reports/$(date +%Y-%m-%d).md"
           cp "reports/$(date +%Y-%m-%d).md" reports/latest.md
           head -20 "reports/$(date +%Y-%m-%d).md"
       - name: Commit and push
