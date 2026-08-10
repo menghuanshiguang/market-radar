@@ -1,0 +1,31 @@
+name: Market Radar Daily
+on:
+  schedule:
+    - cron: '30 0 * * 1-5'   # UTC 00:30 = 北京 08:30 (开盘前)
+    - cron: '35 7 * * 1-5'   # UTC 07:35 = 北京 15:35 (收盘后)
+  workflow_dispatch: {}
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: 生成月线雷达报告
+        run: |
+          mkdir -p reports
+          python3 mradar.py > "reports/$(date +%Y-%m-%d).md"
+          cp "reports/$(date +%Y-%m-%d).md" reports/latest.md
+      - name: Commit and push
+        run: |
+          git config user.name "market-radar-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add reports/
+          if ! git diff --cached --quiet; then
+            git commit -m "radar report $(date +%Y-%m-%d %H:%M)"
+            git push
+          else
+            echo "无变化,跳过提交"
+          fi
