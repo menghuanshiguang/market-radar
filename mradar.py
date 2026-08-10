@@ -174,11 +174,13 @@ def main():
             print(f"\n| 指数 | 月线柱 | 状态事实 |")
             print(f"|---|---|---|")
             for r in sub:
-                print(f"| {r["name"]} | {r["hist3"][-1]:+.0f} | {r["note"]} |")
-        # 结论摘要
-        print(f"\n## 📋 结论")
-        for r in results:
-            print(f"- {r['name']}:{r['fwd']}")
+                print(f"| {r['name']} | {r['hist3'][-1]:+.0f} | {r['note']} |")
+        # 状态汇总(只报事实)
+        print(f"\n## 📋 状态汇总")
+        for g in groups:
+            sub = [r for r in results if r["state"] == g]
+            if sub:
+                print(f"- {emoji[g]} {g}: {', '.join(r['name'] for r in sub)}")
         print(f"\n_策略联动: 上证月线死叉 → 半导体策略空仓,等下一次月线金叉_")
     else:
         print(f"{'指数':8s} {'状态':>8s} {'月线柱':>8s} {'说明':>28s} {'对应ETF':>14s}")
