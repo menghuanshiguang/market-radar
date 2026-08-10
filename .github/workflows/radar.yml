@@ -2,11 +2,14 @@ name: Market Radar Daily
 on:
   schedule:
     - cron: '30 0 2 * *'     # 每月2日 UTC 00:30 = 北京 08:30 (上月月线完整)
-
   workflow_dispatch: {}
 
 permissions:
   contents: write
+
+concurrency:
+  group: radar-report
+  cancel-in-progress: true
 
 jobs:
   radar:
@@ -19,9 +22,10 @@ jobs:
       - name: 生成月线雷达报告
         run: |
           mkdir -p reports
-          python3 mradar.py --md > "reports/$(date +%Y-%m-%d).md"
-          cp "reports/$(date +%Y-%m-%d).md" reports/latest.md
-          head -20 "reports/$(date +%Y-%m-%d).md"
+          F="reports/$(date +%Y-%m-%d-%H%M).md"
+          python3 mradar.py --md > "$F"
+          cp "$F" reports/latest.md
+          echo "生成: $F"
       - name: Commit and push
         run: |
           git config user.name "market-radar-bot"
@@ -29,7 +33,8 @@ jobs:
           git add reports/
           if ! git diff --cached --quiet; then
             git commit -m "radar report $(date +%Y-%m-%d %H:%M)"
-            git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main
+            git pull --rebase "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main || echo "pull跳过"
+            git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main || echo "push跳过(下次run自动同步)"
           else
             echo "无变化,跳过提交"
           fi
