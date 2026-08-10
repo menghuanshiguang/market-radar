@@ -65,31 +65,28 @@ def macd_all(closes):
     return dif, dea
 
 def classify(dif, dea, dates):
-    """返回 (状态, 说明)"""
+    """返回 (状态, 说明) — 只描述事实,不预测"""
     d1, e1 = dif[-1], dea[-1]
     hist = [(dif[i] - dea[i]) * 2 for i in range(len(dif))]
-    h3 = hist[-3:]  # 近3月柱
+    h3 = hist[-3:]
     if d1 > e1:
-        # 金叉
         if h3[-1] > h3[-2]:
-            return "金叉健康", f"柱{h3[-1]:+.0f}(回升)"
+            return "金叉健康", f"柱{h3[-1]:+.0f}(近月回升)"
         if abs(h3[-1]) < 40:
-            return "金叉垂死", f"柱{h3[-1]:+.0f}贴零轴(即将死叉)"
-        return "金叉转弱", f"柱{h3[-1]:+.0f}连续收缩(3月:{h3[0]:+.0f}→{h3[-1]:+.0f})"
+            return "金叉垂死", f"柱{h3[-1]:+.0f}贴零轴(3月:{h3[0]:+.0f}→{h3[-1]:+.0f})"
+        return "金叉转弱", f"柱{h3[-1]:+.0f}(3月:{h3[0]:+.0f}→{h3[-1]:+.0f},连续收缩)"
     else:
-        # 死叉: 找死叉月份 + 柱趋势
         cross_m = None
         for i in range(len(dif) - 1, 0, -1):
             if dif[i - 1] >= dea[i - 1] and dif[i] < dea[i]:
                 cross_m = dates[i][:7]
                 break
-        # 刚死叉: 死叉发生在最近2个月内
         if cross_m and cross_m >= dates[-2][:7]:
             return "刚死叉", f"{cross_m}死叉 柱{h3[-1]:+.0f}(第1-2月)"
         a = [abs(x) for x in h3]
         if a[2] < a[0]:
-            return "死叉收敛", f"{cross_m}死叉 柱{h3[-1]:+.0f}(绿柱缩短,或修复)"
-        return "死叉扩大", f"{cross_m}死叉 柱{h3[-1]:+.0f}(绿柱扩大,恶化)"
+            return "死叉收敛", f"{cross_m}死叉 柱{h3[-1]:+.0f}(3月:{h3[0]:+.0f}→{h3[-1]:+.0f},绿柱缩短)"
+        return "死叉扩大", f"{cross_m}死叉 柱{h3[-1]:+.0f}(绿柱扩大)"
 
 def analyze_one(code, mtype, name, etf):
     m = get_monthly(code, mtype)
@@ -108,7 +105,7 @@ def analyze_one(code, mtype, name, etf):
                 break
     return {
         "name": name, "etf": etf, "state": state, "note": note,
-        "dif": dif[-1], "dea": dea[-1], "price": closes[-1],
+"dif": dif[-1], "dea": dea[-1], "price": closes[-1],
         "dd": dd, "hist3": [(dif[i] - dea[i]) * 2 for i in range(-3, 0)],
         "dates": dates, "closes": closes, "dif_all": dif, "dea_all": dea,
     }
@@ -174,24 +171,14 @@ def main():
             if not sub:
                 continue
             print(f"\n## {emoji[g]} {g} — {desc[g]}")
-            print(f"\n| 指数 | 月线柱 | 说明 | 对应ETF |")
-            print(f"|---|---|---|---|")
+            print(f"\n| 指数 | 月线柱 | 状态事实 |")
+            print(f"|---|---|---|")
             for r in sub:
-                print(f"| {r['name']} | {r['hist3'][-1]:+.0f} | {r['note']} | {r['etf']} |")
+                print(f"| {r["name"]} | {r["hist3"][-1]:+.0f} | {r["note"]} |")
         # 结论摘要
         print(f"\n## 📋 结论")
-        buy = [r for r in results if r["state"] == "金叉健康"]
-        avoid = [r for r in results if r["state"] in ("刚死叉", "死叉扩大")]
-        dying = [r for r in results if r["state"] in ("金叉转弱", "金叉垂死")]
-        if buy:
-            print(f"- 🟢 可做多: {', '.join(r['name'] for r in buy)}")
-        if dying:
-            print(f"- 🟡 转弱/垂死: {', '.join(r['name'] for r in dying)}")
-        if avoid:
-            print(f"- 🔴 回避/清仓: {', '.join(r['name'] for r in avoid)}")
-        conv = [r for r in results if r["state"] == "死叉收敛"]
-        if conv:
-            print(f"- 🟠 死叉收敛(观察): {', '.join(r['name'] for r in conv)}")
+        for r in results:
+            print(f"- {r['name']}:{r['fwd']}")
         print(f"\n_策略联动: 上证月线死叉 → 半导体策略空仓,等下一次月线金叉_")
     else:
         print(f"{'指数':8s} {'状态':>8s} {'月线柱':>8s} {'说明':>28s} {'对应ETF':>14s}")
